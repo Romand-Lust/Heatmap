@@ -1,92 +1,87 @@
 import streamlit as st
-import cv2
-import numpy as np
-import os
 import pandas as pd
-from datetime import datetime
-from tracker import detect_motion
-from medaillen import calculate_activity_score, get_activity_level
 import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+import tempfile
+import datetime
 
-# Speicher für Ergebnisse
+# --- Page Setup ---
+st.set_page_config(page_title="Cat Activity Heatmap Analyzer", layout="centered")
+
+st.title("🐾 Cat Activity Heatmap Analyzer")
+st.write("Upload a video of your cat, and we’ll generate a **heatmap**, an **activity score**, and assign a **level**.")
+st.info("📌 Tip: For best results, keep the camera **steady** while recording.")
+
+# --- Session State ---
 if "results" not in st.session_state:
     st.session_state.results = []
-    st.session_state.video_counter = 0
+    st.session_state.counter = 0
 
-st.title("🐾 Katzen Aktivitäts-Analyse")
-
-# Hinweis anzeigen
-st.info("Bitte halte die Kamera während der Aufnahme möglichst **stabil**, "
-        "damit die Bewegungen der Katze korrekt erkannt werden.")
-
-# Datei-Upload
-uploaded_file = st.file_uploader("Lade ein Video hoch", type=["mp4", "mov", "avi"])
+# --- File Upload ---
+uploaded_file = st.file_uploader("📂 Upload a video", type=["mp4", "mov", "avi", "mkv"])
 
 if uploaded_file is not None:
-    # Video temporär speichern
-    temp_video_path = "temp_video.mp4"
-    with open(temp_video_path, "wb") as f:
-        f.write(uploaded_file.read())
+    st.video(uploaded_file)
 
-    # Originalvideo anzeigen
-    st.video(temp_video_path)
+    with st.spinner("⏳ Analyzing your video... please wait."):
+        # Save file temporarily
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile.write(uploaded_file.read())
+        video_path = tfile.name
 
-    # Analyse starten
-    with st.spinner("⏳ Video wird analysiert ..."):
-        heatmap = detect_motion(temp_video_path)
+        # --- Generate Heatmap (very simple example) ---
+        cap = cv2.VideoCapture(video_path)
+        heatmap = None
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if heatmap is None:
+                heatmap = np.float32(gray)
+            else:
+                heatmap += gray
+        cap.release()
 
-        if heatmap is not None:
-            # Score & Level berechnen
-            score = calculate_activity_score(heatmap)
-            level = get_activity_level(score)
+        heatmap_norm = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
+        heatmap_img = np.uint8(heatmap_norm)
 
-            # Heatmap wie vorher einfärben
-            heatmap_img = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
-            heatmap_img = np.uint8(heatmap_img)
-            heatmap_colored = cv2.applyColorMap(heatmap_img, cv2.COLORMAP_JET)
-            heatmap_rgb = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
-
-            # Heatmap speichern
-            os.makedirs("outputs/heatmaps", exist_ok=True)
-            filename = f"outputs/heatmaps/heatmap_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-            cv2.imwrite(filename, heatmap_colored)
-
-            # Video-Nr. hochzählen
-            st.session_state.video_counter += 1
-            video_nr = st.session_state.video_counter
-
-            # Ergebnisse speichern
-            st.session_state.results.append({
-                "Nr": video_nr,
-                "Datei": uploaded_file.name,
-                "Score": score,
-                "Level": level
-            })
-
-            # Ergebnisse anzeigen
-            st.success(f"🎯 Score: {score}/100")
-            st.write(f"🏅 Level: {level}")
-            st.image(heatmap_rgb, caption="Heatmap", use_container_width=True)
-            st.caption(f"✅ Heatmap gespeichert: {filename}")
-
+        # --- Calculate Score ---
+        score = int(np.mean(heatmap_norm))
+        if score < 85:
+            level = "🥉 Bronze"
+        elif score < 170:
+            level = "🥈 Silver"
         else:
-            st.error("❌ Fehler beim Verarbeiten des Videos.")
+            level = "🥇 Gold"
 
-# Wenn Ergebnisse da sind → Tabelle & Diagramm
-if len(st.session_state.results) > 0:
+        # --- Save Result ---
+        st.session_state.counter += 1
+        st.session_state.results.append({
+            "Number": st.session_state.counter,
+            "File Name": uploaded_file.name,
+            "Score": score,
+            "Level": level
+        })
+
+    # --- Show Results ---
+    st.subheader("📊 Results")
+
+    st.image(heatmap_img, caption="Heatmap", use_column_width=True)
+
     df = pd.DataFrame(st.session_state.results)
+    st.table(df)
 
-    st.subheader("📊 Übersicht")
-    st.dataframe(df[["Nr", "Datei", "Score", "Level"]], use_container_width=True)
-
-    # Liniendiagramm mit Ganzzahlen auf der x-Achse
-    st.subheader("📈 Score-Verlauf")
+    # --- Score Chart ---
+    st.subheader("📈 Score Progression")
     fig, ax = plt.subplots()
-    ax.plot(df["Nr"], df["Score"], marker="o", linestyle="-")
-    ax.set_xlabel("Nummer")
+    ax.plot(df["Number"], df["Score"], marker="o", linestyle="-")
+    ax.set_xlabel("Number")
     ax.set_ylabel("Score")
-    ax.set_xticks(df["Nr"])  # Ganzzahlen erzwingen
+    ax.set_xticks(df["Number"])  # force integer ticks only
     st.pyplot(fig)
+
 
 
 
