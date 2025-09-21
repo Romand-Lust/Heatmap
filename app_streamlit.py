@@ -14,15 +14,14 @@ if "results" not in st.session_state:
     st.session_state.video_counter = 0
 
 st.title("🐾 Cat Heatmap Analyzer")
-st.write("Lade ein Video hoch und erhalte sofort eine Heatmap-Analyse mit Score & Level.")
+st.write(“Upload a video of your cat, and we’ll automatically generate a heatmap, score, and activity level.”)
 
 
 # Hinweis anzeigen
-st.info("Bitte halte die Kamera während der Aufnahme möglichst **stabil**, "
-        "damit die Bewegungen der Katze korrekt erkannt werden.")
+st.info(“For best results, keep the camera steady when recording.”)
 
 # Datei-Upload
-uploaded_file = st.file_uploader("Lade ein Video hoch", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader("Uplaod a video", type=["mp4", "mov", "avi"])
 
 if uploaded_file is not None:
     # Video temporär speichern
@@ -34,7 +33,7 @@ if uploaded_file is not None:
     st.video(temp_video_path)
 
     # Analyse starten
-    with st.spinner("⏳ Video wird analysiert ..."):
+    with st.spinner("⏳ Analyzing your video… this may take a few seconds.”):
         heatmap = detect_motion(temp_video_path)
 
         if heatmap is not None:
