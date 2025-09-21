@@ -68,7 +68,7 @@ if uploaded_file is not None:
     # --- Show Results ---
     st.subheader("📊 Results")
 
-    st.image(heatmap_img, caption="Heatmap", use_column_width=True)
+    st.image(heatmap_img, caption="Heatmap", use_container_width=True)
 
     df = pd.DataFrame(st.session_state.results)
     st.table(df)
