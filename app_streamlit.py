@@ -13,7 +13,9 @@ if "results" not in st.session_state:
     st.session_state.results = []
     st.session_state.video_counter = 0
 
-st.title("🐾 Katzen Aktivitäts-Analyse")
+st.title("🐾 Cat Heatmap Analyzer")
+st.write("Lade ein Video hoch und erhalte sofort eine Heatmap-Analyse mit Score & Level.")
+
 
 # Hinweis anzeigen
 st.info("Bitte halte die Kamera während der Aufnahme möglichst **stabil**, "
