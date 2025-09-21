@@ -21,7 +21,7 @@ st.write(“Upload a video of your cat, and we’ll automatically generate a hea
 st.info(“For best results, keep the camera steady when recording.”)
 
 # Datei-Upload
-uploaded_file = st.file_uploader("Uplaod a video", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader(Uplaod a video", type=["mp4", "mov", "avi"])
 
 if uploaded_file is not None:
     # Video temporär speichern
