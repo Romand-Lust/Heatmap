@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-from datetime import datetime
 
 # Ordner für Heatmaps
 os.makedirs("outputs/heatmaps", exist_ok=True)
@@ -13,7 +12,7 @@ os.makedirs("outputs/heatmaps", exist_ok=True)
 if "results" not in st.session_state:
     st.session_state.results = []
 
-# Analyse-Funktion (einfach & stabil)
+# Analyse-Funktion (zurück auf "Normalzustand")
 def analyze_video(video_path, video_id):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -25,21 +24,22 @@ def analyze_video(video_path, video_id):
 
     while ret:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        diff = cv2.absdiff(gray, cv2.medianBlur(gray, 5))  # Bewegung hervorheben
+        _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
         heatmap_accum += thresh.astype(np.float32)
         ret, frame = cap.read()
 
     cap.release()
 
-    # Normieren und Heatmap speichern
-    heatmap_norm = cv2.normalize(heatmap_accum, None, 0, 255, cv2.NORM_MINMAX)
-    heatmap_colored = cv2.applyColorMap(heatmap_norm.astype(np.uint8), cv2.COLORMAP_JET)
+    # Heatmap zurück zum Normalzustand (direkt mit cv2.COLORMAP_JET einfärben)
+    heatmap_uint8 = np.clip(heatmap_accum, 0, 255).astype(np.uint8)
+    heatmap_colored = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
 
     heatmap_filename = f"outputs/heatmaps/heatmap_{video_id}.png"
     cv2.imwrite(heatmap_filename, heatmap_colored)
 
     # Score berechnen
-    active_pixels = np.sum(heatmap_norm > 50)
+    active_pixels = np.sum(heatmap_uint8 > 50)
     score = min(int(active_pixels / 100), 100)
 
     # Level bestimmen
@@ -72,13 +72,13 @@ if uploaded_file is not None:
         heatmap, score, level = analyze_video(video_path, video_id)
 
     if heatmap is not None:
-        # Video anzeigen
+        # Original Video anzeigen
         st.video(video_path)
 
-        # Heatmap anzeigen
+        # Heatmap anzeigen (jetzt wieder wie vorher)
         st.image(heatmap, caption="🔥 Heatmap Ergebnis", use_container_width=True)
 
-        # Ergebnis speichern
+        # Ergebnisse speichern
         st.session_state.results.append({
             "Nummer": video_id,
             "Datei": uploaded_file.name,
