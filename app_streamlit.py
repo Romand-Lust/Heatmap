@@ -1,83 +1,101 @@
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import cv2
-import tempfile
-import datetime
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import os
+from datetime import datetime
 
-# --- Page Setup ---
-st.set_page_config(page_title="Cat Activity Heatmap Analyzer", layout="centered")
+# Ordner für Heatmaps
+os.makedirs("outputs/heatmaps", exist_ok=True)
 
-st.title("🐾 Cat Activity Heatmap Analyzer")
-st.write("Upload a video of your cat, and we’ll generate a **heatmap**, an **activity score**, and assign a **level**.")
-st.info("📌 Tip: For best results, keep the camera **steady** while recording.")
-
-# --- Session State ---
+# Session State für Ergebnisse
 if "results" not in st.session_state:
     st.session_state.results = []
-    st.session_state.counter = 0
 
-# --- File Upload ---
-uploaded_file = st.file_uploader("📂 Upload a video", type=["mp4", "mov", "avi", "mkv"])
+# Analyse-Funktion (einfach & stabil)
+def analyze_video(video_path, video_id):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        st.error("❌ Fehler: Video konnte nicht geöffnet werden.")
+        return None, None, None
+
+    ret, frame = cap.read()
+    heatmap_accum = np.zeros_like(frame[:, :, 0], dtype=np.float32)
+
+    while ret:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        heatmap_accum += thresh.astype(np.float32)
+        ret, frame = cap.read()
+
+    cap.release()
+
+    # Normieren und Heatmap speichern
+    heatmap_norm = cv2.normalize(heatmap_accum, None, 0, 255, cv2.NORM_MINMAX)
+    heatmap_colored = cv2.applyColorMap(heatmap_norm.astype(np.uint8), cv2.COLORMAP_JET)
+
+    heatmap_filename = f"outputs/heatmaps/heatmap_{video_id}.png"
+    cv2.imwrite(heatmap_filename, heatmap_colored)
+
+    # Score berechnen
+    active_pixels = np.sum(heatmap_norm > 50)
+    score = min(int(active_pixels / 100), 100)
+
+    # Level bestimmen
+    if score < 30:
+        level = "Bronze 🥉"
+    elif score < 70:
+        level = "Silver 🥈"
+    else:
+        level = "Gold 🥇"
+
+    return heatmap_filename, score, level
+
+# ----------------- Streamlit App -----------------
+
+st.title("🐾 Cat Heatmap Analyzer")
+
+st.info("ℹ️ Bitte achte darauf, dass die Kamera beim Filmen **still gehalten** wird.")
+
+uploaded_file = st.file_uploader("📤 Lade ein Video hoch (MP4)", type=["mp4"])
 
 if uploaded_file is not None:
-    st.video(uploaded_file)
+    # Temporäre Datei speichern
+    video_path = f"temp_{uploaded_file.name}"
+    with open(video_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    with st.spinner("⏳ Analyzing your video... please wait."):
-        # Save file temporarily
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(uploaded_file.read())
-        video_path = tfile.name
+    # Zeigen, dass Analyse läuft
+    with st.spinner("🔍 Video wird analysiert... bitte warten"):
+        video_id = len(st.session_state.results) + 1
+        heatmap, score, level = analyze_video(video_path, video_id)
 
-        # --- Generate Heatmap (very simple example) ---
-        cap = cv2.VideoCapture(video_path)
-        heatmap = None
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            if heatmap is None:
-                heatmap = np.float32(gray)
-            else:
-                heatmap += gray
-        cap.release()
+    if heatmap is not None:
+        # Video anzeigen
+        st.video(video_path)
 
-        heatmap_norm = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
-        heatmap_img = np.uint8(heatmap_norm)
+        # Heatmap anzeigen
+        st.image(heatmap, caption="🔥 Heatmap Ergebnis", use_container_width=True)
 
-        # --- Calculate Score ---
-        score = int(np.mean(heatmap_norm))
-        if score < 85:
-            level = "🥉 Bronze"
-        elif score < 170:
-            level = "🥈 Silver"
-        else:
-            level = "🥇 Gold"
-
-        # --- Save Result ---
-        st.session_state.counter += 1
+        # Ergebnis speichern
         st.session_state.results.append({
-            "Number": st.session_state.counter,
-            "File Name": uploaded_file.name,
+            "Nummer": video_id,
+            "Datei": uploaded_file.name,
             "Score": score,
             "Level": level
         })
 
-    # --- Show Results ---
-    st.subheader("📊 Results")
+        # Tabelle anzeigen
+        df = pd.DataFrame(st.session_state.results)
+        st.subheader("📊 Übersicht")
+        st.dataframe(df, use_container_width=True)
 
-    st.image(heatmap_img, caption="Heatmap", use_column_width=True)
-
-    df = pd.DataFrame(st.session_state.results)
-    st.table(df)
-
-    # --- Score Chart ---
-    st.subheader("📈 Score Progression")
-    fig, ax = plt.subplots()
-    ax.plot(df["Number"], df["Score"], marker="o", linestyle="-")
-    ax.set_xlabel("Number")
-    ax.set_ylabel("Score")
-    ax.set_xticks(df["Number"])  # force integer ticks only
-    st.pyplot(fig)
+        # Score-Verlauf anzeigen
+        st.subheader("📈 Score Verlauf")
+        fig, ax = plt.subplots()
+        ax.plot(df["Nummer"], df["Score"], marker="o", linestyle="-", color="blue")
+        ax.set_xlabel("Nummer")
+        ax.set_ylabel("Score")
+        ax.set_xticks(df["Nummer"])
+        st.pyplot(fig)
