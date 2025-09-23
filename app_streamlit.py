@@ -22,7 +22,7 @@ st.markdown("""
 2. Make sure the **cat is clearly visible**.  
 3. Upload only short clips (10–30 seconds recommended).  
 
-➡️ Click **Choose file** below to upload your video.
+➡️ Click **Drop file** below to upload your video.
 """)
 
 # File uploader
