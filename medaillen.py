@@ -26,10 +26,10 @@ def calculate_activity_score(heatmap):
 
 def get_activity_level(score):
     if score < 25:
-        return "Bronze 🥉"
+        return "🥉 Bronze "
     elif score < 50:
-        return "Silver 🥈"
+        return "🥈 Silver "
     elif score < 75:
-        return "Gold 🥇"
+        return "🥇 Gold "
     else:
-        return "Platin 🏆"
+        return "🏆 Platin "
