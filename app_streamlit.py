@@ -77,7 +77,7 @@ if uploaded_file is not None:
                 "Platinum": "🏆 Platinum"
             }
 
-            st.success(f"🎯 Score: {score}/100")  st.write(f"🏅 Level: {level_colors.get(level, level)}")
+            st.success(f"🎯 Score: {score}/100" f"🏅 Level: {level_colors.get(level, level)}")  
 
             # Tabs for better layout
             tab1, tab2, tab3 = st.tabs(["🔥 Heatmap", "📊 Overview", "📈 Score Trend"])
