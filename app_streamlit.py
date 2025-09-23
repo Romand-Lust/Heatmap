@@ -84,13 +84,13 @@ if uploaded_file is not None:
 
             # Overview Tab
             with tab1:
-                df = pd.DataFrame(st.session_state.results)
-                st.dataframe(df[["Nr", "File", "Score", "Level"]], use_container_width=True)
-
-            # Heatmap Tab
-            with tab2:
                 st.image(heatmap_rgb, caption="Heatmap", use_container_width=True)
                 st.caption(f"✅ Heatmap saved: {filename}")
+               
+            # Heatmap Tab
+            with tab2:
+                df = pd.DataFrame(st.session_state.results)
+                st.dataframe(df[["Nr", "File", "Score", "Level"]], use_container_width=True)
 
             # Score Trend Tab
             with tab3:
