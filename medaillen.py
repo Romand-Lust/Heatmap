@@ -28,7 +28,7 @@ def get_activity_level(score):
     if score < 25:
         return "Bronze 🥉"
     elif score < 50:
-        return "Silber 🥈"
+        return "Silver 🥈"
     elif score < 75:
         return "Gold 🥇"
     else:
